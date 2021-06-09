@@ -7,7 +7,7 @@ class BadNominalException(Exception):
         return repr(self.value) 
 
 class Money():
-    
+    """Klasa odpowiedzialna za poprawne funkcjonowanie pojedynczych pieniędzy"""
     def __init__(self, val):
         val = Decimal(float(val)).quantize(Decimal('.01'), rounding = ROUND_DOWN)
         allowed = list(map(Decimal, ['0.01', '0.02', '0.05',\
