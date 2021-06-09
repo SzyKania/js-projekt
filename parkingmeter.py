@@ -13,7 +13,12 @@ class BadInputException(Exception):
     pass
 
 class ParkingMeter(object):
+    """Główna klasa programu"""
     def __init__(self):
+        """
+        W tej sekcji program głównie konstruuje GUI
+        W środku umieściłem także funkcję aktualizującą czas
+        """
         self._moneycount = dict.fromkeys(list(map(Decimal, ['0.01', '0.02', '0.05',\
          '0.1', '0.2', '0.5', '1', '2', '5'])), 0)
         self._moneysum = 0
@@ -28,6 +33,9 @@ class ParkingMeter(object):
         window =  Tk()
         window.geometry('560x230')
         
+        #W tej sekcji tworzę przyciski, pola wejścia oraz pola wyświetlające
+        #Jeśli potrzebne, przypisuję im odpowiednie komendy
+
         datelabel = Label(window, text="Aktualny czas:")
         deptlabel = Label(window, text="Bilet wazny do:")
         sumlabel = Label(window, text="Suma:")
@@ -40,6 +48,7 @@ class ParkingMeter(object):
         self.plate = Entry(window, width=14)
         self.newdate = Entry(window, width=20)
 
+        #Konstrukcja partial pozwala na wywołanie w trakcie działania programu danej funkcji z danymi zmiennymi
         self.confirmation = Button(window, text="Zatwierdz bilet", command=partial(self.confirm, self.plate))
         self.changetime = Button(window, text="Zmien date i godzine", command=partial(self.changedate, self.newdate))      
         self.closebutton = Button(window, text="Zamknij program", command=window.destroy)      
@@ -53,8 +62,11 @@ class ParkingMeter(object):
         for text, value in buttondata:
             self.buttons.append(Button(window, text=text, width=10, command=partial(self.buttonpln, value, self.multiplier, sumviewer, departureviewer)))
             
-        self.placebuttons(self.buttons, xdelta, ydelta, offs)
+        #W tej sekcji przyciski i pola umieszczane są w odpowiednich miejscach interfejsu
+        #Pola wejscia otrzymują domyślne wartości przy pomocy pole.insert
 
+        self.placebuttons(self.buttons, xdelta, ydelta, offs)
+    
         datelabel.place(x = 3*xdelta+offs, y = offs)
         deptlabel.place(x = 4.5*xdelta+offs, y = offs)
         sumlabel.place(x = xdelta+offs, y = 4*ydelta + offs)
@@ -75,6 +87,7 @@ class ParkingMeter(object):
         self.newdate.insert(0, "YYYY-MM-DD hh:mm")
 
         def update_time():
+            """Odpowiada za aktualizację wyświetlanego czasu"""
             current_time = (datetime.datetime.now() + self._timechange).strftime("%Y-%m-%d %H:%M")
             dateviewer['text'] = current_time
             if(self._moneysum == 0):
@@ -87,6 +100,7 @@ class ParkingMeter(object):
         window.mainloop()
 
     def placebuttons(self, buttons, xdelta, ydelta, offs):
+        """Rozmieszcza przyciski odpowiadające obsługiwanym nominałom"""
         buttons[0].place(x = offs, y = offs)
         buttons[1].place(x = xdelta+offs, y = offs)
         buttons[2].place(x = 2*xdelta+offs, y = offs)
@@ -103,7 +117,25 @@ class ParkingMeter(object):
         buttons[10].place(x = xdelta+offs, y = 3*ydelta+offs)
         buttons[11].place(x = 2*xdelta+offs, y = 3*ydelta+offs)
 
+    def buttonpln(self, arg, field, sumviewer, departureviewer):
+        """
+        Pozwala na wielokrotne wrzucenie danego pieniądza
+        a także weryfikuje czy mnożnik pieniędzy jest poprawną wartością
+        """
+        multiplier = field.get()
+        if not(multiplier.isdigit()):
+            multiplier = 1
+
+        multiplier = int(multiplier)
+
+        if multiplier < 1:
+            multiplier = 1
+
+        for _ in range(multiplier):
+            self.pay_coin(Money(arg), sumviewer, departureviewer)
+
     def pay_coin(self, coin, sumviewer, departureviewer):
+        """Wywołuje wszystkie akcje związane z wrzuceniem pieniądza"""
         if coin.get_val() not in (10, 20, 50):
             try:
                 if self._moneycount[coin.get_val()] == 200:
@@ -120,9 +152,14 @@ class ParkingMeter(object):
         #print("Dodano", coin.get_val(), "kredytu")
     
     def get_bal(self):
+        """Zwraca sumę pieniędzy wrzuconą przez parkującego"""
         return self._moneysum
 
     def check_plate(self, plate):
+        """
+        Sprawdza czy podana tablica rejestracyjna spełnia przyjęte zasady
+        t.j. 8-4 znaków, tylko duże litery i cyfry
+        """
         try:
             if(len(plate) > 8 or len(plate) < 4):
                 raise BadInputException
@@ -135,6 +172,7 @@ class ParkingMeter(object):
             return plate
 
     def calc_seconds(self):
+        """Oblicza ilosc sekund parkowania przysługujących za aktualny kredyt"""
         temp = self.get_bal()
         if temp <= 2.0:
             _parkingseconds = temp * 30 * 60
@@ -147,55 +185,57 @@ class ParkingMeter(object):
         return int(_parkingseconds)
 
     def calc_sec_to_20(self, departure: datetime.datetime):
+        """
+        Oblicza sekundy brakujące do godziny 20
+        Funkcja potrzebna w celu sprawdzenia,
+        czy nie należy zmienić dnia na kolejny
+        """
         datetime_end = departure.replace(hour=20, minute=0, second=0, microsecond=0)
         return (datetime_end - departure).total_seconds()
 
     def calc_departure(self):
-
+        """
+        Oblicza datę wyjazdu z parkingu
+        """
         seconds = self.calc_seconds()
         departure = datetime.datetime.now()+self._timechange
 
         while seconds != 0:
-    
+            #sprawdzenie czy obecny dzień nie jest weekendem, wtedy dzień wyjazdu=poniedziałek
             if departure.weekday() == 6:
                 departure += datetime.timedelta(days=1)
                 departure = departure.replace(hour=8, minute=0, second=0, microsecond=0)
             elif departure.weekday() == 5:
                 departure += datetime.timedelta(days=2)
                 departure = departure.replace(hour=8, minute=0, second=0, microsecond=0)
-
+            #sprawdzenie czy obecna godzina nie jest większa od 20, jeśli tak,
+            #przechodzimy do kolejnego dnia o 8:00, i ponownie sprawdzamy czy nie znaleźliśmy się w weekendzie
             if departure.hour >= 20:
                 departure += datetime.timedelta(days=1)
                 departure = departure.replace(hour=8, minute=0, second=0, microsecond=0)
                 continue
+            #sprawdzenie czy obecna godzina nie jest mniejsza od 8, jeśli tak, przechodzimy do 8:00
             elif departure.hour < 8:
                 departure = departure.replace(hour=8, minute=0, second=0, microsecond=0)
             
             sec_to_20 = self.calc_sec_to_20(departure)
+            #jeśli opłacone sekundy nie wystarczają na przekroczenie dnia,
+            #dodajemy sekundy do daty
             if seconds < sec_to_20:
                 departure += datetime.timedelta(seconds=seconds)
                 seconds = 0
+            #w przeciwnym wypadku przestawiamy godzinę na 20
             else:
                 departure += datetime.timedelta(seconds=sec_to_20)
                 seconds -= sec_to_20
-       # print('Planowany departure:', departure)
         return departure
 
-    def buttonpln(self, arg, field, sumviewer, departureviewer):
-
-        multiplier = field.get()
-        if not(multiplier.isdigit()):
-            multiplier = 1
-
-        multiplier = int(multiplier)
-
-        if multiplier < 1:
-            multiplier = 1
-
-        for _ in range(multiplier):
-            self.pay_coin(Money(arg), sumviewer, departureviewer)
 
     def popup_window(self, plate, sold, departure):
+        """
+        Po udanym zatwierdzeniu wyprowadza na ekran okno z 
+        nr rejestracyjnym i datetime obecnym, datetime wyjazdu
+        """
         window = Toplevel()
         plate = "Nr rejestracyjny: " + plate
         sold = "\nCzas zakupu: " + sold.strftime("%m/%d/%Y, %H:%M")
@@ -209,6 +249,12 @@ class ParkingMeter(object):
         button_close.pack(fill='x')
 
     def confirm(self, plate):
+        """
+        Próba zakupu biletu
+        Sprawdzana jest poprawność tablic rejestracyjnych
+        oraz czy klient wrzucił jakiekolwiek pieniądze
+        w razie powodzenia uruchamiana jest funkcja popup_window
+        """
         string = plate.get()
         if self.check_plate(string) == "":
             return
@@ -223,6 +269,9 @@ class ParkingMeter(object):
             self._moneysum = 0
 
     def changedate(self, newdate):
+        """
+        Przyjmowanie daty podanej przez użytkownika
+        """
         mydate = newdate.get()
         try:
             mydate = parse(mydate)
