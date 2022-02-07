@@ -1,5 +1,9 @@
 # 2. Parkomat
 
+![screen1](./screenshots/screenshot1.png)
+
+![screen2](./screenshots/screenshot2.png)
+
 ## Opis zadania
 
 - Parkomat przechowuje informacje o monetach/banknotach znajdujących się w
